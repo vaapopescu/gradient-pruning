@@ -8,7 +8,6 @@ import os
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 from utils.mixup import MixUp
-
 __all__ = ['resnet', 'resnet_se']
 
 
@@ -343,7 +342,6 @@ class ResNet_cifar(ResNet):
                 {'epoch': 120, 'lr': 4e-3},
                 {'epoch': 160, 'lr': 8e-4}
             ]
-
         # Sampled regimes from "Mix & Match: training convnets with mixed image sizes for improved accuracy, speed and scale resiliency"
         if 'sampled' in regime:
             adapt_batch = True if 'B+' in regime else False
@@ -375,6 +373,12 @@ def resnet(**config):
         torch.nn.Conv2d = QConv2d
         torch.nn.BatchNorm2d = RangeBN
 
+    if config.pop('prune_grad', False):
+        from .modules.prune_grad import PConv2d, PLinear, PBN
+        torch.nn.Conv2d = PConv2d
+        torch.nn.Linear = PLinear
+        torch.nn.BatchNorm2d = PBN
+        
     bn_norm = config.pop('bn_norm', None)
     if bn_norm is not None:
         from .modules.lp_norm import L1BatchNorm2d, TopkBatchNorm2d

@@ -21,6 +21,8 @@ from datetime import datetime
 from ast import literal_eval
 from trainer import Trainer
 
+from torch.utils.tensorboard import SummaryWriter
+
 model_names = sorted(name for name in models.__dict__
                      if name.islower() and not name.startswith("__")
                      and callable(models.__dict__[name]))
@@ -28,11 +30,11 @@ model_names = sorted(name for name in models.__dict__
 parser = argparse.ArgumentParser(description='PyTorch ConvNet Training')
 parser.add_argument('--config-file', default=None,
                     help='json configuration file')
-parser.add_argument('--results-dir', metavar='RESULTS_DIR', default='./results',
+parser.add_argument('--results_dir', metavar='RESULTS_DIR', default='/mnt/home/results',
                     help='results dir')
 parser.add_argument('--save', metavar='SAVE', default='',
                     help='saved folder')
-parser.add_argument('--datasets-dir', metavar='DATASETS_DIR', default='~/Datasets',
+parser.add_argument('--datasets_dir', metavar='DATASETS_DIR', default='/mnt/home/datasets',
                     help='datasets dir')
 parser.add_argument('--dataset', metavar='DATASET', default='imagenet',
                     help='dataset name or folder')
@@ -101,7 +103,7 @@ parser.add_argument('--momentum', default=0.9, type=float, metavar='M',
                     help='momentum')
 parser.add_argument('--weight-decay', '--wd', default=0, type=float,
                     metavar='W', help='weight decay (default: 0)')
-parser.add_argument('--print-freq', '-p', default=10, type=int,
+parser.add_argument('--print-freq', '-p', default=20, type=int,
                     metavar='N', help='print frequency (default: 10)')
 parser.add_argument('--adapt-grad-norm', default=None, type=int,
                     help='adapt gradient scale frequency (default: None)')
@@ -165,6 +167,7 @@ def main_worker(args):
     results_path = path.join(save_path, 'results')
     results = ResultsLog(results_path,
                          title='Training Results - %s' % args.save)
+    writer = SummaryWriter(log_dir=save_path, purge_step=1)
 
     logging.info("saving to %s", save_path)
     logging.debug("run arguments: %s", args)
@@ -354,6 +357,15 @@ def main_worker(args):
                          legend=['gradient L2 norm'],
                          title='Gradient Norm', ylabel='value')
         results.save()
+
+        writer.add_scalar('Loss/validation', val_results['loss'], epoch)
+        writer.add_scalar('Loss/train', train_results['loss'], epoch)
+        writer.add_scalar('Top1/validation', val_results['prec1'], epoch)
+        writer.add_scalar('Top1/train', train_results['prec1'], epoch)
+        writer.add_scalar('Top5/validation', val_results['prec5'], epoch)
+        writer.add_scalar('Top5/train', train_results['prec5'], epoch)
+
+    writer.close()
 
 
 if __name__ == '__main__':

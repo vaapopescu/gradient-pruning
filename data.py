@@ -15,7 +15,7 @@ warnings.filterwarnings("ignore", "(Possibly )?corrupt EXIF data", UserWarning)
 
 
 def get_dataset(name, split='train', transform=None,
-                target_transform=None, download=True, datasets_path='~/Datasets'):
+                target_transform=None, download=True, datasets_path='/mnt/home/datasets'):
     train = (split == 'train')
     root = os.path.join(os.path.expanduser(datasets_path), name)
     if name == 'cifar10':
