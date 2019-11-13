@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch.autograd.function import InplaceFunction, Function
 import pdb
 
-_PRUNING_PERCENTAGE = 60
+_PRUNING_PERCENTAGE = 70
 
 def random_zeros(x, percent=_PRUNING_PERCENTAGE):
     perm = torch.randperm(x.numel())
@@ -18,15 +18,16 @@ def random_zeros(x, percent=_PRUNING_PERCENTAGE):
     return x
 
 def smaller_zeros(x, percent=_PRUNING_PERCENTAGE):
-    k = min(1, int(x.numel() * percent / 100))
+    k = max(1, int(x.numel() * percent / 100))
     kth_value, _ = torch.kthvalue(x.flatten().detach().cpu().abs(), k)
+    print('k ', k, 'kth ', kth_value)
     x[x.abs() <= kth_value.cuda()] = 0.0
 
     return x
 
 def statistical_smaller_zeros(x, percent=_PRUNING_PERCENTAGE):
     mask_size = 1000
-    k = min(1, int(mask_size * percent / 100))
+    k = max(1, int(mask_size * percent / 100))
 
     perm = torch.randperm(x.numel())
     mask = perm[:mask_size].cuda()
