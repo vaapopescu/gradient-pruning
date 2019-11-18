@@ -1,12 +1,15 @@
 from collections import namedtuple
 import math
+import time
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.autograd.function import InplaceFunction, Function
+from os import path, makedirs
+from datetime import datetime
 import pdb
 
-_PRUNING_PERCENTAGE = 70
+_PRUNING_PERCENTAGE = 75
 
 def random_zeros(x, percent=_PRUNING_PERCENTAGE):
     perm = torch.randperm(x.numel())
@@ -20,7 +23,6 @@ def random_zeros(x, percent=_PRUNING_PERCENTAGE):
 def smaller_zeros(x, percent=_PRUNING_PERCENTAGE):
     k = max(1, int(x.numel() * percent / 100))
     kth_value, _ = torch.kthvalue(x.flatten().detach().cpu().abs(), k)
-    print('k ', k, 'kth ', kth_value)
     x[x.abs() <= kth_value.cuda()] = 0.0
 
     return x
@@ -45,15 +47,26 @@ class UniformZeroGrad(InplaceFunction):
     def forward(ctx, input, percent=_PRUNING_PERCENTAGE):
         ctx.percent = percent
         ctx.inplace = False
+        
+        #ctx.save_path = path.join("results/ZERO/Cifar10/Resnet56/prune75%/", datetime.now().strftime('%d_%H'))
+        #if (not path.exists(ctx.save_path)):
+        #    makedirs(ctx.save_path)
         return input
 
     @staticmethod
     def backward(ctx, grad_output):
+        #before_path = path.join(ctx.save_path, 'before' + str([*grad_output.size()]) + '.pickle')
+        #if (not path.exists(before_path)):
+        #    torch.save(grad_output, before_path) 
+
         with torch.no_grad():
             grad_input = grad_output.detach().clone()
-            
             if grad_output.numel() > 2000:
                 grad_input = smaller_zeros(grad_input, ctx.percent)
+
+        #after_path = path.join(ctx.save_path, 'after' + str([*grad_output.size()]) + '.pickle')
+        #if (not path.exists(after_path)):
+        #    torch.save(grad_output, after_path) 
 
         return grad_input, None, None, None, None, None, None, None
 
