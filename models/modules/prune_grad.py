@@ -9,7 +9,7 @@ from os import path, makedirs
 from datetime import datetime
 import pdb
 
-_PRUNING_PERCENTAGE = 75
+_PRUNING_PERCENTAGE = 60
 
 def random_zeros(x, percent=_PRUNING_PERCENTAGE):
     perm = torch.randperm(x.numel())
@@ -48,7 +48,7 @@ class UniformZeroGrad(InplaceFunction):
         ctx.percent = percent
         ctx.inplace = False
         
-        #ctx.save_path = path.join("results/ZERO/Cifar10/Resnet56/prune75%/", datetime.now().strftime('%d_%H'))
+        #ctx.save_path = path.join("results/Prune/Cifar10/Resnet56/prune50%/", datetime.now().strftime('%d_%H'))
         #if (not path.exists(ctx.save_path)):
         #    makedirs(ctx.save_path)
         return input
@@ -64,12 +64,11 @@ class UniformZeroGrad(InplaceFunction):
             if grad_output.numel() > 2000:
                 grad_input = smaller_zeros(grad_input, ctx.percent)
 
-        #after_path = path.join(ctx.save_path, 'after' + str([*grad_output.size()]) + '.pickle')
+        #after_path = path.join(ctx.save_path, 'after' + str([*grad_input.size()]) + '.pickle')
         #if (not path.exists(after_path)):
-        #    torch.save(grad_output, after_path) 
+        #    torch.save(grad_input, after_path) 
 
         return grad_input, None, None, None, None, None, None, None
-
 
 
 def conv2d_prune_grad(input, weight, bias=None, stride=1, padding=0, dilation=1, 

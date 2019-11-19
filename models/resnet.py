@@ -377,7 +377,7 @@ def resnet(**config):
         from .modules.prune_grad import PConv2d, PLinear, PBN
         torch.nn.Conv2d = PConv2d
         torch.nn.Linear = PLinear
-        torch.nn.BatchNorm2d = PBN
+        #torch.nn.BatchNorm2d = PBN
         
     bn_norm = config.pop('bn_norm', None)
     if bn_norm is not None:
