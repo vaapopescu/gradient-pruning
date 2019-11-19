@@ -66,7 +66,7 @@ class UniformZeroGrad(InplaceFunction):
 
         #after_path = path.join(ctx.save_path, 'after' + str([*grad_output.size()]) + '.pickle')
         #if (not path.exists(after_path)):
-        #    torch.save(grad_output, after_path) 
+        #    torch.save(grad_input, after_path) 
 
         return grad_input, None, None, None, None, None, None, None
 

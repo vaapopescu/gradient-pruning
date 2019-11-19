@@ -1,5 +1,6 @@
 import time
 import logging
+from os import path, makedirs
 import torch
 import torch.nn as nn
 import torch.nn.parallel
@@ -56,7 +57,8 @@ class Trainer(object):
     def __init__(self, model, criterion, optimizer=None,
                  device_ids=[0], device=torch.cuda, dtype=torch.float,
                  distributed=False, local_rank=-1, adapt_grad_norm=None,
-                 mixup=None, cutmix=None, loss_scale=1., grad_clip=-1, print_freq=100):
+                 mixup=None, cutmix=None, loss_scale=1., grad_clip=-1, print_freq=100,
+                 save_path="./results"):
         self._model = model
         self.criterion = criterion
         self.epoch = 0
@@ -76,6 +78,11 @@ class Trainer(object):
         self.watcher = None
         self.streams = {}
 
+        self.saved_grad_tensor_1 = []
+        self.saved_grad_tensor_2 = []
+        self.saved_grad_tensor_3 = []
+        self.save_path = save_path
+
         if distributed:
             self.model = nn.parallel.DistributedDataParallel(model,
                                                              device_ids=device_ids,
@@ -84,6 +91,44 @@ class Trainer(object):
             self.model = nn.DataParallel(model, device_ids)
         else:
             self.model = model
+        for name, module in model.named_children():
+            print(name)
+        self.model.layer1[0].conv1.register_backward_hook(self.savegrad_1)
+        self.model.layer2[0].conv1.register_backward_hook(self.savegrad_2)
+        self.model.layer3[0].conv1.register_backward_hook(self.savegrad_3)
+
+    def savegrad_1(self, module, grad_input, grad_output):
+        in_dict = self.calc_hist_grad(grad_input)
+        out_dict = self.calc_hist_grad(grad_output)
+
+        if in_dict and out_dict: #check if dicts aren't empty
+            self.saved_grad_tensor_1.append({'grad_input': in_dict, 'grad_output': out_dict})
+
+    def savegrad_2(self, module, grad_input, grad_output):
+        in_dict = self.calc_hist_grad(grad_input)
+        out_dict = self.calc_hist_grad(grad_output)
+
+        if in_dict and out_dict: #check if dicts aren't empty
+            self.saved_grad_tensor_2.append({'grad_input': in_dict, 'grad_output': out_dict})
+
+    def savegrad_3(self, module, grad_input, grad_output):
+        in_dict = self.calc_hist_grad(grad_input)
+        out_dict = self.calc_hist_grad(grad_output)
+
+        if in_dict and out_dict: #check if dicts aren't empty
+            self.saved_grad_tensor_3.append({'grad_input': in_dict, 'grad_output': out_dict})
+
+    def calc_hist_grad(self, grad):
+        X = grad[0].view(-1)
+        X = X[X!=0]
+        X_log = torch.log(X.abs())
+
+        #import pdb; pdb.set_trace()
+        if X_log.size()[0] > 0:
+            hist = torch.histc(X_log, bins=1000)
+            return {'min': torch.min(X_log).item(), 'max': torch.max(X_log).item(), 'hist': hist.cpu().numpy()}
+        return {}
+
 
     def _grad_norm(self, inputs_batch, target_batch, chunk_batch=1):
         self.model.zero_grad()
@@ -257,10 +302,28 @@ class Trainer(object):
                     self.write_stream('lr',
                                       (self.training_steps, self.optimizer.get_lr()[0]))
 
+            if i==194:
+                import pickle
+                with open(path.join(self.save_path, 'grad_hists_1.pkl'), 'wb') as f:
+                    pickle.dump(self.saved_grad_tensor_1, f)
+                    
+                with open(path.join(self.save_path, 'grad_hists_2.pkl'), 'wb') as f:
+                    pickle.dump(self.saved_grad_tensor_2, f)
+                    
+                with open(path.join(self.save_path, 'grad_hists_3.pkl'), 'wb') as f:
+                    pickle.dump(self.saved_grad_tensor_3, f)
+
             if num_steps is not None and i >= num_steps:
                 break
 
         return meter_results(meters)
+
+    def plot_grad_hist(self, grad_dict):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        x = np.linspace(grad_dict['min'], grad_dict['max'], num=1000)
+        plt.plot(x, grad_dict['hist'])
+        plt.show()
 
     def train(self, data_loader, average_output=False, chunk_batch=1):
         # switch to train mode
