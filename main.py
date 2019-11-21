@@ -53,7 +53,7 @@ parser.add_argument('--dtype', default='float',
                     ' (default: float)')
 parser.add_argument('--device', default='cuda',
                     help='device assignment ("cpu" or "cuda")')
-parser.add_argument('--device-ids', default=[0], type=int, nargs='+',
+parser.add_argument('--device_ids', default=[0], type=int, nargs='+',
                     help='device ids assignment (e.g 0 1 2 3')
 parser.add_argument('--world-size', default=-1, type=int,
                     help='number of distributed processes')
